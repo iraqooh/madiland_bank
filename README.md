@@ -39,7 +39,7 @@ Follow these steps to get the code and run it on your system:
 1. **Clone the Repository**
     ```sh
     git clone https://github.com/iraqooh/madiland_bank.git
-    cd banking-application
+    cd madiland_bank
     ```
 
 2. **Compile the Application**
@@ -48,12 +48,12 @@ Follow these steps to get the code and run it on your system:
     ```
     Or, if you don't have `make`:
     ```sh
-    gcc -o banking_app main.c account.c transaction.c -I.
+    gcc -o madiland_bank main.c account.c transaction.c -I.
     ```
 
 3. **Run the Application**
     ```sh
-    ./banking_app
+    ./madiland_bank
     ```
 
 ## Usage

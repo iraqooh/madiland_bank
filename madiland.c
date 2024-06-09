@@ -8,15 +8,37 @@
 
 char option;
 char firstname[256];
+char lastname[256];
+char username[256];
 char password1[256];
 char password2[256];
+char email[256];
+char telephone[256];
+char initialDeposit[256];
+char pin[256];
 long long int account_number;
 double balance;
 char account_info[256];
+
+enum InputType {
+	NAME,
+	USERNAME,
+	PASSWORD,
+	EMAIL,
+	TELEPHONE,
+	MONEY,
+	PIN
+};
+
 typedef struct {
 	char* firstname;
+	char* lastname;
+	char* username;
 	char* password;
+	char* email;
+	char* telephone;
 	char* account_number;
+	char* pin_number;
 	double balance;
 } Account;
 
@@ -63,6 +85,116 @@ void mainbank(Account current_user) {
 	return;
 }
 
+void validate_username(const char* username_input, Account* account) {
+	FILE* clients = fopen("clients.txt", "r");
+	char account_info[256];
+	
+	while (fgets(account_info, sizeof(account_info), clients)) {
+		char* token = strtok(account_info, " ");
+		
+		if (token != NULL && strcmp(token, username_input) == 0) {
+			strcpy(account->username, username);
+			
+			token = strtok(NULL, " ");
+			if (token != NULL) strcpy(account->firstname, token);
+			
+			token = strtok(NULL, " ");
+			if (token != NULL) strcpy(account->lastname, token);
+			
+			token = strtok(NULL, " ");
+			if (token != NULL) strcpy(account->password, token);
+			
+			token = strtok(NULL, " ");
+			if (token != NULL) strcpy(account->email, token);
+			
+			token = strtok(NULL, " ");
+			if (token != NULL) strcpy(account->telephone, token);
+			
+			token = strtok(NULL, " ");
+			if (token != NULL) strcpy(account->account_number, token);
+			
+			token = strtok(NULL, " ");
+			if (token != NULL) strcpy(account->pin_number, token);
+			
+			token = strtok(NULL, " ");
+			char balance_buffer[256];
+			if (token != NULL) strcpy(balance_buffer, token);
+			account->balance = atof(balance_buffer);
+			
+			fclose(clients);
+			
+			return;
+		}
+		
+		memset(account_info, 0, sizeof(account_info));
+	}
+	
+	fclose(clients);
+	
+	return;
+}
+
+char* validate_input(char* input, const enum InputType input_type) {
+	int length = strlen(input);
+	
+	if ((input_type == NAME || input_type == USERNAME) && (length < 2 || length > 16)) {
+		return "Input should be at least 2 or at most 16 characters long!\n\n";
+	}
+	
+	switch (input_type) {
+		case NAME:			
+			for (int index = 0; index < length; index++) {
+				if (!isalpha(input[index])) return "Names must contain only alphabetic characters!\n\n";
+			}
+			break;
+		case USERNAME:			
+			for (int index = 0; index < length; index++) {
+				if (isspace(input[index])) return "Names must contain only alphabetic characters!\n\n";
+			}
+			break;
+		case PASSWORD:			
+			for (int index = 0; index < length; index++) {
+				if (!isalpha(input[index])) return "Usernames must not contain any whitespace!\n\n";
+			}
+			break;
+		case EMAIL:
+			if (length < 2 || length > 32) return "Email must be at least 9 and at most 32 characters long!\n\n";
+			
+			for (int index = 0; index < length; index++) {
+				if (isspace(input[index])) return "Email must not contain any whitespace!\n\n";
+			}
+			break;
+		case TELEPHONE:
+			if (length < 9 || length > 13) return "Invalid telephone number!\n\n";	
+			
+			for (int index = 0; index < length; index++) {
+				if (!isdigit(input[index]) && input[index] != '+') return "Invalid character!\n\n";
+			}
+			break;
+		case MONEY:			
+			for (int index = 0; index < length; index++) {
+				if (!isdigit(input[index])) return "Invalid monetary value!\n\n";
+			}
+			
+			if (length < 5) return "Deposit should be at least UGX 15,000.00!\n\n";
+			
+			balance = atof(input);
+			
+			if (balance < 15000.0) return "Deposit should be at least UGX 15,000.00!\n\n";
+			
+			break;
+		case PIN:
+			if (length != 4) return "PIN must be 4 digits long!\n\n";
+			
+			for (int index = 0; index < length; index++) {
+				if (!isdigit(input[index])) return "PIN must contain only digits!\n\n";
+			}
+			break;
+	}
+	return NULL;
+}
+
+
 int main() {
 	
 	FILE* clients = fopen("clients.txt", "a+");
@@ -72,6 +204,7 @@ int main() {
 	}
 	
 	while (true) {
+		menu:
 		printf("Welcome\n\n1. Login\n2. Register\n3. Exit\n\nSelect option: ");
 		scanf(" %c", &option);
 		clear_stream();
@@ -94,7 +227,52 @@ int main() {
 					fgets(firstname, sizeof(firstname), stdin);
 					firstname[strcspn(firstname, "\n")] = 0;
 					
+					if (strcmp(firstname, "quit") == 0) goto menu;
+					
+					char* validation_result = validate_input(firstname, NAME);
+					
+					if (validation_result != NULL) {
+						printf("%s", validation_result);
+						continue;
+					}
+					
 					printf("First Name: %s\n\n", firstname);
+					break;
+				}
+				
+				while (true) {
+					printf("Enter last name: ");
+					fgets(lastname, sizeof(lastname), stdin);
+					lastname[strcspn(lastname, "\n")] = 0;
+					
+					if (strcmp(lastname, "quit") == 0) goto menu;
+					
+					char* validation_result = validate_input(lastname, NAME);
+					
+					if (validation_result != NULL) {
+						printf("%s", validation_result);
+						continue;
+					}
+					
+					printf("Last Name: %s\n\n", lastname);
+					break;
+				}
+				
+				while (true) {
+					printf("Enter username: ");
+					fgets(username, sizeof(username), stdin);
+					username[strcspn(username, "\n")] = 0;
+					
+					if (strcmp(username, "quit") == 0) goto menu;
+					
+					char* validation_result = validate_input(username, USERNAME);
+					
+					if (validation_result != NULL) {
+						printf("%s", validation_result);
+						continue;
+					}
+					
+					printf("Username: %s\n\n", username);
 					break;
 				}
 				
@@ -102,6 +280,15 @@ int main() {
 					printf("Enter password: ");
 					fgets(password1, sizeof(password1), stdin);
 					password1[strcspn(password1, "\n")] = 0;
+					
+					if (strcmp(password1, "quit") == 0) goto menu;
+					
+					char* validation_result = validate_input(password1, PASSWORD);
+					
+					if (validation_result != NULL) {
+						printf("%s", validation_result);
+						continue;
+					}
 					
 					break;
 				}
@@ -111,34 +298,120 @@ int main() {
 					fgets(password2, sizeof(password2), stdin);
 					password2[strcspn(password2, "\n")] = 0;
 					
+					if (strcmp(password2, "quit") == 0) goto menu;
+					
+					char* validation_result = validate_input(password2, PASSWORD);
+					
+					if (validation_result != NULL) {
+						printf("%s", validation_result);
+						continue;
+					}
+					
 					if (strcmp(password1, password2) != 0) {
 						printf("Passwords do not match. Try again!\n\n");
 						sleep(1);
 						continue;
 					}
 					
+					printf("Password: %s\n\n", password1);
+					break;
+				}
+				
+				while (true) {
+					printf("Enter email: ");
+					fgets(email, sizeof(email), stdin);
+					email[strcspn(email, "\n")] = 0;
+					
+					if (strcmp(email, "quit") == 0) goto menu;
+					
+					char* validation_result = validate_input(email, EMAIL);
+					
+					if (validation_result != NULL) {
+						printf("%s", validation_result);
+						continue;
+					}
+					
+					printf("Email: %s\n\n", email);
+					break;
+				}
+				
+				while (true) {
+					printf("Enter telephone number: ");
+					fgets(telephone, sizeof(telephone), stdin);
+					telephone[strcspn(telephone, "\n")] = 0;
+					
+					if (strcmp(telephone, "quit") == 0) goto menu;
+					
+					char* validation_result = validate_input(telephone, TELEPHONE);
+					
+					if (validation_result != NULL) {
+						printf("%s", validation_result);
+						continue;
+					}
+					
+					printf("Telephone: %s\n\n", telephone);
+					break;
+				}
+				
+				while (true) {
+					printf("Specify amount of initial deposit (min. UGX 15,000.00): ");
+					fgets(initialDeposit, sizeof(initialDeposit), stdin);
+					initialDeposit[strcspn(initialDeposit, "\n")] = 0;
+					
+					if (strcmp(initialDeposit, "quit") == 0) goto menu;
+					
+					char* validation_result = validate_input(initialDeposit, MONEY);
+					
+					if (validation_result != NULL) {
+						printf("%s", validation_result);
+						continue;
+					}
+					
+					printf("Deposit: %s\n\n", initialDeposit);
+					break;
+				}
+				
+				while (true) {
+					printf("Enter 4-digit PIN: ");
+					fgets(pin, sizeof(pin), stdin);
+					pin[strcspn(pin, "\n")] = 0;
+					
+					if (strcmp(pin, "quit") == 0) goto menu;
+					
+					char* validation_result = validate_input(pin, PIN);
+					
+					if (validation_result != NULL) {
+						printf("%s", validation_result);
+						continue;
+					}
+					
+					printf("PIN: %s\n\n", pin);
 					break;
 				}
 				
 				srand(time(NULL));
-				long long int min = 111111111111, max = 9999999999999999;
+				long long int min = 1111111111111111, max = 9999999999999999;
 				account_number = min + rand() % (max - min + 1);
 				
-				balance = 15000.00;
+				printf("\n**** New Account Info ****\n\nName: %s %s\nUsername: %s\nPassword: %s\nEmail: %s\nTelephone: %s\nAccount Number: %llu\nPIN: %s\nBalance: %.2lf\n\n",
+					firstname, lastname, username, password1, email, telephone, account_number, pin, balance);
 				
-				printf("\nNew Account Info\nName: %s\nPassword: %s\nNumber: %llu\nBalance: %.2lf\n\n",
-					firstname, password1, account_number, balance);
-				
-				fprintf(clients, "%s %s %llu %.2lf\n", firstname, password1, 
-					account_number, balance);
+				int saved = fprintf(clients, "%s %s %s %s %s %s %llu %s %.2lf\n", username, firstname, lastname, password1, 
+					email, telephone, account_number, pin, balance);
 					
-				sleep(2);
+				if (!saved) {
+					printf("Account information saving failed. Please try again or contact your system admin!\n\n");
+					sleep(1);
+					break;
+				}
+					
+				sleep(3);
 				
 				printf("Your account has been successfully created.\n\n");
 				
 				char account_number_str[256];
 				snprintf(account_number_str, sizeof(account_number_str), "%llu", account_number);
-				Account current_user = {firstname, password1, account_number_str, balance};
+				Account current_user = {firstname, lastname, username, password1, email, telephone, account_number_str, pin, balance};
 				
 				mainbank(current_user);
 				break;

@@ -16,7 +16,7 @@ char email[256];
 char telephone[256];
 char initialDeposit[256];
 char pin[256];
-long long int account_number;
+char account_number[256];
 double balance;
 char account_info[256];
 
@@ -30,24 +30,24 @@ enum InputType {
 	PIN
 };
 
-typedef struct {
-	char* firstname;
-	char* lastname;
-	char* username;
-	char* password;
-	char* email;
-	char* telephone;
-	char* account_number;
-	char* pin_number;
-	double balance;
-} Account;
+//typedef struct {
+//	char* firstname;
+//	char* lastname;
+//	char* username;
+//	char* password;
+//	char* email;
+//	char* telephone;
+//	char* account_number;
+//	char* pin_number;
+//	double balance;
+//} Account;
 
 void clear_stream() {
 	int c;
 	while ((c = getchar()) != '\n' && c != EOF);
 }
 
-void mainbank(Account current_user) {
+void mainbank(char* firstname, char* lastname, char* username, char* password, char* email, char* telephone, char* account_number, short pin_number, double balance) {
 	while (true) {
 		printf("\n\nMain Menu\n\n1. Transfer Money\n2. Deposit Money\n3. Check Balance\n4. Logout\n\nSelect option: ");
 		scanf(" %c", &option);
@@ -85,7 +85,7 @@ void mainbank(Account current_user) {
 	return;
 }
 
-void validate_username(const char* username_input, Account* account) {
+void validate_username(const char* username_input) {
 	FILE* clients = fopen("clients.txt", "r");
 	char account_info[256];
 	
@@ -93,33 +93,35 @@ void validate_username(const char* username_input, Account* account) {
 		char* token = strtok(account_info, " ");
 		
 		if (token != NULL && strcmp(token, username_input) == 0) {
-			strcpy(account->username, username);
+			strcpy(username, username_input);
 			
 			token = strtok(NULL, " ");
-			if (token != NULL) strcpy(account->firstname, token);
+			if (token != NULL) strcpy(firstname, token);
 			
 			token = strtok(NULL, " ");
-			if (token != NULL) strcpy(account->lastname, token);
+			if (token != NULL) strcpy(lastname, token);
 			
 			token = strtok(NULL, " ");
-			if (token != NULL) strcpy(account->password, token);
+			if (token != NULL) strcpy(password1, token);
 			
 			token = strtok(NULL, " ");
-			if (token != NULL) strcpy(account->email, token);
+			if (token != NULL) strcpy(email, token);
 			
 			token = strtok(NULL, " ");
-			if (token != NULL) strcpy(account->telephone, token);
+			if (token != NULL) strcpy(telephone, token);
 			
 			token = strtok(NULL, " ");
-			if (token != NULL) strcpy(account->account_number, token);
+			if (token != NULL) strcpy(account_number, token);
 			
 			token = strtok(NULL, " ");
-			if (token != NULL) strcpy(account->pin_number, token);
+			if (token != NULL) {
+				strcpy(pin, token);
+			}
 			
 			token = strtok(NULL, " ");
 			char balance_buffer[256];
 			if (token != NULL) strcpy(balance_buffer, token);
-			account->balance = atof(balance_buffer);
+			balance = atof(balance_buffer);
 			
 			fclose(clients);
 			
@@ -391,12 +393,13 @@ int main() {
 				
 				srand(time(NULL));
 				long long int min = 1111111111111111, max = 9999999999999999;
-				account_number = min + rand() % (max - min + 1);
+				long long int acc_number = min + rand() % (max - min + 1);
+				snprintf(account_number, sizeof(account_number), "%llu", acc_number);
 				
-				printf("\n**** New Account Info ****\n\nName: %s %s\nUsername: %s\nPassword: %s\nEmail: %s\nTelephone: %s\nAccount Number: %llu\nPIN: %s\nBalance: %.2lf\n\n",
+				printf("\n**** New Account Info ****\n\nName: %s %s\nUsername: %s\nPassword: %s\nEmail: %s\nTelephone: %s\nAccount Number: %s\nPIN: %s\nBalance: %.2lf\n\n",
 					firstname, lastname, username, password1, email, telephone, account_number, pin, balance);
 				
-				int saved = fprintf(clients, "%s %s %s %s %s %s %llu %s %.2lf\n", username, firstname, lastname, password1, 
+				int saved = fprintf(clients, "%s %s %s %s %s %s %s %s %.2lf\n", username, firstname, lastname, password1, 
 					email, telephone, account_number, pin, balance);
 					
 				if (!saved) {
@@ -409,11 +412,7 @@ int main() {
 				
 				printf("Your account has been successfully created.\n\n");
 				
-				char account_number_str[256];
-				snprintf(account_number_str, sizeof(account_number_str), "%llu", account_number);
-				Account current_user = {firstname, lastname, username, password1, email, telephone, account_number_str, pin, balance};
-				
-				mainbank(current_user);
+				mainbank(firstname, lastname, username, password1, email, telephone, account_number, atoi(pin), balance);
 				break;
 			case '1':
 				printf("Logging in...\n\n");
@@ -426,7 +425,7 @@ int main() {
 					memset(account_info, 0, sizeof(account_info));
 				}
 				
-				mainbank(current_user);
+				mainbank(firstname, lastname, username, password1, email, telephone, account_number, atoi(pin), balance);
 				break;
 			default:
 				printf("Invalid input. Try again!\n\n");

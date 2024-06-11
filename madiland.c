@@ -16,9 +16,14 @@ char email[256];
 char telephone[256];
 char initialDeposit[256];
 char pin[256];
+short pin_number;
 char account_number[256];
 double balance;
 char account_info[256];
+char temp_buffer[256];
+time_t current_time;
+char formatted_time[256];
+int tries = 3;
 
 enum InputType {
 	NAME,
@@ -85,11 +90,10 @@ void mainbank(char* firstname, char* lastname, char* username, char* password, c
 	return;
 }
 
-void validate_username(const char* username_input) {
-	FILE* clients = fopen("clients.txt", "r");
+void validate_username(const char* username_input, FILE* file) {
 	char account_info[256];
 	
-	while (fgets(account_info, sizeof(account_info), clients)) {
+	while (fgets(account_info, sizeof(account_info), file)) {
 		char* token = strtok(account_info, " ");
 		
 		if (token != NULL && strcmp(token, username_input) == 0) {
@@ -123,17 +127,28 @@ void validate_username(const char* username_input) {
 			if (token != NULL) strcpy(balance_buffer, token);
 			balance = atof(balance_buffer);
 			
-			fclose(clients);
-			
 			return;
 		}
 		
 		memset(account_info, 0, sizeof(account_info));
 	}
 	
-	fclose(clients);
-	
 	return;
+}
+
+bool username_exists(const char* username_input, FILE* file) {
+	memset(temp_buffer, 0, sizeof(temp_buffer));
+	
+	while (fgets(temp_buffer, sizeof(temp_buffer), file)) {
+		char* token = strtok(temp_buffer, " ");
+		
+		if (token != NULL && !strcmp(token, username_input)) {
+			return true;
+		}
+		memset(temp_buffer, 0, sizeof(temp_buffer));
+	}
+	
+	return false;
 }
 
 char* validate_input(char* input, const enum InputType input_type) {
@@ -149,14 +164,15 @@ char* validate_input(char* input, const enum InputType input_type) {
 				if (!isalpha(input[index])) return "Names must contain only alphabetic characters!\n\n";
 			}
 			break;
-		case USERNAME:			
+		case USERNAME:
+			if (!isalpha(input[0])) return "Username must start with a letter!\n\n";
 			for (int index = 0; index < length; index++) {
-				if (isspace(input[index])) return "Names must contain only alphabetic characters!\n\n";
+				if (isspace(input[index])) return "Username must not contain any whitespace!\n\n";
 			}
 			break;
 		case PASSWORD:			
 			for (int index = 0; index < length; index++) {
-				if (!isalpha(input[index])) return "Usernames must not contain any whitespace!\n\n";
+				if (isspace(input[index])) return "Password must not contain any whitespace!\n\n";
 			}
 			break;
 		case EMAIL:
@@ -196,22 +212,46 @@ char* validate_input(char* input, const enum InputType input_type) {
 	return NULL;
 }
 
+void mem_clear(char* variable) {
+	memset(variable, 0, sizeof(variable));
+}
+
+void log_usage(const char* message, FILE* file) {
+	if (file == NULL) return;
+	
+	time(&current_time);
+	
+	strftime(formatted_time, sizeof(formatted_time), "%Y-%m-%d %H:%M:%S\t", localtime(&current_time));
+	
+	strcat(formatted_time, message);
+	
+	fprintf(file, "%s\n", formatted_time);
+	
+	mem_clear(formatted_time);
+	
+	return;
+}
 
 int main() {
+	FILE* logs = fopen("usage_logs.txt", "a");	
+	log_usage("Starting session.", logs);
 	
-	FILE* clients = fopen("clients.txt", "a+");
-	if (clients == NULL) {
-		printf("FOE Error. Contact your system admin!\n");
-		return 0;
-	}
-	
-	while (true) {
+	while (true) {	
+		FILE* clients = fopen("clients.txt", "r");
+		if (clients == NULL) {
+			log_usage("Failed to open \"clients.txt\".", logs);
+			printf("FOE Error: Contact your system admin or try again later!\n\n");
+			sleep(1);
+			break;
+		}
+		
 		menu:
 		printf("Welcome\n\n1. Login\n2. Register\n3. Exit\n\nSelect option: ");
 		scanf(" %c", &option);
 		clear_stream();
 		
 		if (!isdigit(option)) {
+			log_usage("Non-digit entry in welcome section.", logs);
 			printf("Invalid input! Option must be a number 1 - 3!\n\n");
 			sleep(1);
 			continue;
@@ -219,21 +259,27 @@ int main() {
 		
 		switch(option) {
 			case '3':
+				log_usage("Ending session.", logs);
 				printf("Thank you for using Madiland Banking...\nExiting...\n");
 				sleep(2);
 				return 0;
 			case '2':
+				log_usage("Attempting new user registration.", logs);
 				while (true) {
 					printf("\nNew User Registration\n\n");
 					printf("Enter first name: ");
 					fgets(firstname, sizeof(firstname), stdin);
 					firstname[strcspn(firstname, "\n")] = 0;
 					
-					if (strcmp(firstname, "quit") == 0) goto menu;
+					if (strcmp(firstname, "quit") == 0) {
+						log_usage("Cancelling registration at firstname.", logs);
+						goto menu;
+					}
 					
 					char* validation_result = validate_input(firstname, NAME);
 					
 					if (validation_result != NULL) {
+						log_usage("Firstname validation failed.", logs);
 						printf("%s", validation_result);
 						continue;
 					}
@@ -247,11 +293,15 @@ int main() {
 					fgets(lastname, sizeof(lastname), stdin);
 					lastname[strcspn(lastname, "\n")] = 0;
 					
-					if (strcmp(lastname, "quit") == 0) goto menu;
+					if (strcmp(lastname, "quit") == 0) {
+						log_usage("Cancelling registration at lastname.", logs);
+						goto menu;
+					}
 					
 					char* validation_result = validate_input(lastname, NAME);
 					
 					if (validation_result != NULL) {
+						log_usage("Lastname validation failed.", logs);
 						printf("%s", validation_result);
 						continue;
 					}
@@ -265,12 +315,23 @@ int main() {
 					fgets(username, sizeof(username), stdin);
 					username[strcspn(username, "\n")] = 0;
 					
-					if (strcmp(username, "quit") == 0) goto menu;
+					if (strcmp(username, "quit") == 0) {
+						log_usage("Cancelling registration at username.", logs);
+						goto menu;
+					}
 					
 					char* validation_result = validate_input(username, USERNAME);
 					
 					if (validation_result != NULL) {
+						log_usage("Username validation failed.", logs);
 						printf("%s", validation_result);
+						continue;
+					}
+					
+					if (username_exists(username, clients)) {
+						log_usage("Username provided is unavailable.", logs);
+						printf("Username already taken. Choose another.\n\n");
+						sleep(1);
 						continue;
 					}
 					
@@ -283,11 +344,15 @@ int main() {
 					fgets(password1, sizeof(password1), stdin);
 					password1[strcspn(password1, "\n")] = 0;
 					
-					if (strcmp(password1, "quit") == 0) goto menu;
+					if (strcmp(password1, "quit") == 0) {
+						log_usage("Cancelling registration at password.", logs);
+						goto menu;
+					}
 					
 					char* validation_result = validate_input(password1, PASSWORD);
 					
 					if (validation_result != NULL) {
+						log_usage("Password validation failed.", logs);
 						printf("%s", validation_result);
 						continue;
 					}
@@ -300,16 +365,21 @@ int main() {
 					fgets(password2, sizeof(password2), stdin);
 					password2[strcspn(password2, "\n")] = 0;
 					
-					if (strcmp(password2, "quit") == 0) goto menu;
+					if (strcmp(password2, "quit") == 0) {
+						log_usage("Cancelling registration at password confirmation.", logs);
+						goto menu;
+					}
 					
 					char* validation_result = validate_input(password2, PASSWORD);
 					
 					if (validation_result != NULL) {
+						log_usage("Password confirmation validation failed.", logs);
 						printf("%s", validation_result);
 						continue;
 					}
 					
 					if (strcmp(password1, password2) != 0) {
+						log_usage("Passwords do not match.", logs);
 						printf("Passwords do not match. Try again!\n\n");
 						sleep(1);
 						continue;
@@ -324,11 +394,15 @@ int main() {
 					fgets(email, sizeof(email), stdin);
 					email[strcspn(email, "\n")] = 0;
 					
-					if (strcmp(email, "quit") == 0) goto menu;
+					if (strcmp(email, "quit") == 0) {
+						log_usage("Cancelling registration at email.", logs);
+						goto menu;
+					}
 					
 					char* validation_result = validate_input(email, EMAIL);
 					
 					if (validation_result != NULL) {
+						log_usage("Email validation failed.", logs);
 						printf("%s", validation_result);
 						continue;
 					}
@@ -342,11 +416,15 @@ int main() {
 					fgets(telephone, sizeof(telephone), stdin);
 					telephone[strcspn(telephone, "\n")] = 0;
 					
-					if (strcmp(telephone, "quit") == 0) goto menu;
+					if (strcmp(telephone, "quit") == 0) {
+						log_usage("Cancelling registration at telephone.", logs);
+						goto menu;
+					}
 					
 					char* validation_result = validate_input(telephone, TELEPHONE);
 					
 					if (validation_result != NULL) {
+						log_usage("Telephone validation failed.", logs);
 						printf("%s", validation_result);
 						continue;
 					}
@@ -360,11 +438,15 @@ int main() {
 					fgets(initialDeposit, sizeof(initialDeposit), stdin);
 					initialDeposit[strcspn(initialDeposit, "\n")] = 0;
 					
-					if (strcmp(initialDeposit, "quit") == 0) goto menu;
+					if (strcmp(initialDeposit, "quit") == 0) {
+						log_usage("Cancelling registration at deposit.", logs);
+						goto menu;
+					}
 					
 					char* validation_result = validate_input(initialDeposit, MONEY);
 					
 					if (validation_result != NULL) {
+						log_usage("Deposit amount validation failed.", logs);
 						printf("%s", validation_result);
 						continue;
 					}
@@ -378,11 +460,15 @@ int main() {
 					fgets(pin, sizeof(pin), stdin);
 					pin[strcspn(pin, "\n")] = 0;
 					
-					if (strcmp(pin, "quit") == 0) goto menu;
+					if (strcmp(pin, "quit") == 0) {
+						log_usage("Cancelling registration at PIN.", logs);
+						goto menu;
+					}
 					
 					char* validation_result = validate_input(pin, PIN);
 					
 					if (validation_result != NULL) {
+						log_usage("PIN validation failed.", logs);
 						printf("%s", validation_result);
 						continue;
 					}
@@ -403,6 +489,7 @@ int main() {
 					email, telephone, account_number, pin, balance);
 					
 				if (!saved) {
+					log_usage("Account info write to \"clients.txt\" failed.", logs);
 					printf("Account information saving failed. Please try again or contact your system admin!\n\n");
 					sleep(1);
 					break;
@@ -410,28 +497,131 @@ int main() {
 					
 				sleep(3);
 				
+				log_usage("New account generated.", logs);
 				printf("Your account has been successfully created.\n\n");
 				
 				mainbank(firstname, lastname, username, password1, email, telephone, account_number, atoi(pin), balance);
 				break;
 			case '1':
-				printf("Logging in...\n\n");
-				while (fgets(account_info, sizeof(account_info), clients)) {
-					char* tokens = strtok(account_info, " ");
-					while (tokens != NULL) {
-						printf("%s ", tokens);
-						tokens = strtok(NULL, " ");
+				while (true) {
+					printf("Enter username: ");
+				    fgets(username, sizeof(username), stdin);
+				    username[strcspn(username, "\n")] = 0;
+				    
+				    if (!strcmp(username, "quit")) {
+				    	log_usage("Cancelling login at username.", logs);
+				    	printf("\n\n");
+				    	goto menu;
 					}
-					memset(account_info, 0, sizeof(account_info));
+				    
+				    char* validation_result = validate_input(username, USERNAME);
+					
+					if (validation_result != NULL) {
+						log_usage("Username validation failed during login attempt.", logs);
+						printf("%s", validation_result);
+						continue;
+					}
+				    
+				    int match;
+				    
+				    while (fgets(temp_buffer, sizeof(temp_buffer), clients)) {
+				        char* token = strtok(temp_buffer, " ");
+				        
+				        if (strcmp(token, username) == 0) {
+				        	match = 1;
+				            token = strtok(NULL, " ");
+				            if (token != NULL) strcpy(firstname, token);
+				            
+				            token = strtok(NULL, " ");
+				            if (token != NULL) strcpy(lastname, token);
+				            
+				            token = strtok(NULL, " ");
+				            if (token != NULL) strcpy(password1, token);
+				            
+				            token = strtok(NULL, " ");
+				            if (token != NULL) strcpy(email, token);
+				            
+				            token = strtok(NULL, " ");
+				            if (token != NULL) strcpy(telephone, token);
+				            
+				            token = strtok(NULL, " ");
+				            if (token != NULL) strcpy(account_number, token);
+				            
+				            token = strtok(NULL, " ");
+				            if (token != NULL) strcpy(pin, token);
+				            pin_number = atoi(pin);
+				            
+				            token = strtok(NULL, " ");
+				            if (token != NULL) strcpy(initialDeposit, token);
+				            
+				            balance = atof(initialDeposit);
+				            
+				            break;
+				        }
+				        memset(temp_buffer, 0, sizeof(temp_buffer));
+				    }
+				    
+				    if (!match) {
+				    	log_usage("Non-existent username provided during login attempt.", logs);
+				    	printf("Username \"%s\" does not exist\n\n", username);
+				    	mem_clear(username);
+				    	sleep(1);
+				    	continue;
+					} else {
+						if (tries == 0 && !strcmp(username, "iraqooh")) {
+							log_usage("Attempting login with exhausted tries.", logs);
+							printf("You have exceeded your login attempts for today!\n\n");
+							break;
+						}
+						bool authenticated = false;
+						
+						while (tries > 0) {
+							printf("Enter password (max. 3 tries): ");
+							
+							fgets(password2, sizeof(password2), stdin);
+							password2[strcspn(password2, "\n")] = 0;
+							
+							if (strcmp(password1, "quit") == 0) {
+								log_usage("Cancelling registration at password.", logs);
+								goto menu;
+							}
+							
+							char* validation_result = validate_input(password2, PASSWORD);
+							
+							if (validation_result != NULL) {
+								log_usage("Password validation failed.", logs);
+								printf("%s", validation_result);
+								continue;
+							}
+							
+							if (strcmp(password1, password2)) {
+								log_usage("Incorrect password entered.", logs);
+								tries--;
+								
+								if (tries == 0) {
+									log_usage("Login attempts exhausted.", logs);
+									printf("You have exhausted your login attempts for this username! Try again later.\n\n");
+									goto menu;
+								}
+								printf("Incorrect password. %d tries Remaining!\n\n", tries);
+								continue;
+							} else authenticated = true;
+						}
+						
+						if (authenticated) mainbank(firstname, lastname, username, password1, email, telephone, account_number, pin_number, balance);
+					}
 				}
 				
-				mainbank(firstname, lastname, username, password1, email, telephone, account_number, atoi(pin), balance);
+				fclose(clients);
+				
+				
 				break;
 			default:
+				log_usage("Non-existent option requested at the welcome menu.", logs);
 				printf("Invalid input. Try again!\n\n");
 		}
+		
+		fclose(logs);
 	}
-	
-	fclose(clients);
 	return 0;
 }

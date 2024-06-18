@@ -6,6 +6,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <windows.h>
 
 // global variables
 char option;
@@ -68,7 +69,7 @@ void get_menu_option();
 char* validate_input(char* input, const enum InputType input_type);
 int get_string_input(const char* user_prompt, char* variable, enum InputType input_type);
 void register_user(FILE* log_file, FILE* clients_file, Account* account);
-char* username_exists(char* username, FILE* log_file, FILE* clients_file);
+bool username_exists(char* username, FILE* log_file, FILE* clients_file, Account* account);
 void login_user(FILE* log_file, FILE* clients_file, Account* account);
 
 void dashboard() {
@@ -250,8 +251,8 @@ char* validate_input(char* input, const enum InputType input_type) {
 
 int get_string_input(const char* user_prompt, char* variable, enum InputType input_type) {
 	printf("%s: ", user_prompt);
-//	fgets(variable, sizeof(variable), stdin);
 	gets(variable);
+//	fgets(variable, sizeof(variable), stdin);
 //	variable[strcspn(variable, "\n")] = 0;
 	
 	if (strcmp(variable, "quit") == 0 || strcmp(variable, "back") == 0 || strcmp(variable, "cancel") == 0) {
@@ -454,12 +455,14 @@ void login_user(FILE* log_file, FILE* clients_file, Account* account) {
 		// username
 		while (true) {
 			int result = get_string_input("Enter username", username, USERNAME);
+			
 		
 			if (result == 0) continue;
 			else if (result == -1) return;
 			
 			break;
 		}
+		
 		
 		// password
 		while (true) {
@@ -472,84 +475,24 @@ void login_user(FILE* log_file, FILE* clients_file, Account* account) {
 		}
 		
 		// checking if credentials provided are correct
-		char* account_info = username_exists(username, log_file, clients_file);
-		if (account_info == NULL) {
-			printf("Username or password is incorrect!\n\n");
-			log_usage("Incorrect username or password entered.", log_file);
-			tries--;
+		if (username_exists(username, log_file, clients_file, account)) {
 			
-			if (tries == 0) {
-				log_usage("Login attempts exhausted.", log_file);
-				printf("You have exhausted your login attempts for this username! Try again later.\n\n");
-				return;
+			if (strcmp(password1, account->password) == 0) {
+				
+				log_usage("Login successful.", log_file);
+		            
+		      	authenticated = true;
+		      	
+		      	return;
+			} else {
+				tries--;
+				printf("Incorrect password. %d tries Remaining!\n\n", tries);
+				continue;
 			}
-			printf("Incorrect password. %d tries Remaining!\n\n", tries);
-			continue;
 		} else {
-			// username found
-			strcpy(account->username, username);
-			
-			char* token = strtok(account_info, " ");
-			if (token != NULL) {
-				// extract first name
-				token = strtok(NULL, " ");
-	            if (token != NULL) strcpy(account->firstname, token);
-	            
-	            // extract last name
-	            token = strtok(NULL, " ");
-	            if (token != NULL) strcpy(account->lastname, token);
-	            
-	            // extract password
-	            token = strtok(NULL, " ");
-	            
-	            // check if passwords match
-	            if (token != NULL && strcmp(token, password1) == 0) {
-	            	// password is correct
-	            	strcpy(account->password, password1);
-	            	
-	            	// extract email
-	            	token = strtok(NULL, " ");
-		            if (token != NULL) strcpy(account->email, token);
-		            
-		            // extract telephone
-		            token = strtok(NULL, " ");
-		            if (token != NULL) strcpy(account->telephone, token);
-		            
-		            // extract account number
-		            token = strtok(NULL, " ");
-		            if (token != NULL) strcpy(account->account_number, token);
-		            
-		            // extract pin number
-		            token = strtok(NULL, " ");
-		            if (token != NULL) strcpy(account->pin, token);
-		            
-		            // extract account balance
-		            token = strtok(NULL, " ");
-		            if (token != NULL) account->balance = atof(token);
-		            
-		            log_usage("Login successful.", log_file);
-		            
-		            authenticated = true;
-		            
-		            return;
-		            
-		        } else {
-		        	// passwords do not match
-		        	printf("Username or password is incorrect!\n\n");
-					log_usage("Incorrect username or password entered.", log_file);
-					tries--;
-					
-					if (tries == 0) {
-						log_usage("Login attempts exhausted.", log_file);
-						printf("You have exhausted your login attempts for this username! Try again later.\n\n");
-						return;
-					}
-					printf("Incorrect password. %d tries Remaining!\n\n", tries);
-					continue;
-				}
-			}
-			
-		}
+			tries--;
+			printf("Incorrect password. %d tries Remaining!\n\n", tries);
+		}	
 	}
 	
 	return;
@@ -560,25 +503,50 @@ void login_user(FILE* log_file, FILE* clients_file, Account* account) {
 * against every username on file and returns the account details,
 * else NULL is returned
 */
-char* username_exists(char* username_input, FILE* log_file, FILE* clients_file) {
+bool username_exists(char* username_input, FILE* log_file, FILE* clients_file, Account* account) {
 	memset(temp_buffer, 0, sizeof(temp_buffer));
+	fseek(clients_file, 0, SEEK_SET);
 	
 	while (fgets(temp_buffer, sizeof(temp_buffer), clients_file)) {
-		char temp_buffer_2[strlen(temp_buffer)];
-		strcpy(temp_buffer_2, temp_buffer);
 		
-		char* token = strtok(temp_buffer_2, " ");
-		
-		if (token != NULL && !strcmp(token, username_input)) {
-			log_usage("Username found during login attempt.", log_file);
+		if (strlen(temp_buffer) > 36) {
 			
-			return temp_buffer;
+			char* token = strtok(temp_buffer, " ");
+			
+			if (token != NULL && strcmp(token, username_input) == 0) {
+				
+				strcpy(account->username, token);
+				token = strtok(NULL, " ");
+				if (token != NULL) strcpy(account->firstname, token);
+				token = strtok(NULL, " ");
+				if (token != NULL) strcpy(account->lastname, token);
+				token = strtok(NULL, " ");
+				if (token != NULL) strcpy(account->password, token);
+				token = strtok(NULL, " ");
+				if (token != NULL) strcpy(account->email, token);
+				token = strtok(NULL, " ");
+				if (token != NULL) strcpy(account->telephone, token);
+				token = strtok(NULL, " ");
+				if (token != NULL) strcpy(account->account_number, token);
+				token = strtok(NULL, " ");
+				if (token != NULL) strcpy(account->pin, token);
+				token = strtok(NULL, " ");
+				account->balance = atof(token);
+				
+				log_usage("Username found during login attempt.", log_file);
+				return true;
+			}
+			
+		} else {
+			log_usage("Clients file is either empty or data is corrupted.", log_file);
+			return false;
 		}
+		
 		memset(temp_buffer, 0, sizeof(temp_buffer));
 	}
 	
 	log_usage("Username not found during login attempt.", log_file);
-	return NULL;
+	return false;
 }
 
 // to be doc'd

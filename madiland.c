@@ -22,6 +22,7 @@ char pin[256];
 char account_number[256];
 double balance;
 char temp_buffer[256];
+char account_info[256];
 time_t current_time;
 char formatted_time[256];
 int tries = 3;
@@ -71,12 +72,10 @@ int get_string_input(const char* user_prompt, char* variable, enum InputType inp
 void register_user(FILE* log_file, FILE* clients_file, Account* account);
 bool username_exists(char* username, FILE* log_file, FILE* clients_file, Account* account);
 void login_user(FILE* log_file, FILE* clients_file, Account* account);
-
-void dashboard() {
-	printf("You are logged in!\n\n");
-	return;
-}
-
+void dashboard(FILE* log_file, FILE* clients_file, Account* account);
+void transfer_money(FILE* log_file, FILE* clients_file, Account* account);
+void withdraw_cash(FILE* log_file, FILE* clients_file, Account* account);
+void update_account(FILE* log_file, FILE* clients_file, Account* account);
 
 // main application
 int main() {
@@ -114,6 +113,7 @@ int main() {
 				// exit application
 				fclose(clients);
 				log_usage("Ending session.", logs);
+				fclose(logs);
 				printf("Thank you for using Madiland Banking...\nExiting...\n");
 				exit(0);
 			case '2':
@@ -129,7 +129,7 @@ int main() {
 				printf("Invalid input. Try again!\n\n");
 		}
 		
-		if (authenticated) dashboard();
+		if (authenticated) dashboard(logs, clients, &current_account);
 	}
 	
 	return 0;
@@ -505,7 +505,7 @@ void login_user(FILE* log_file, FILE* clients_file, Account* account) {
 */
 bool username_exists(char* username_input, FILE* log_file, FILE* clients_file, Account* account) {
 	memset(temp_buffer, 0, sizeof(temp_buffer));
-	fseek(clients_file, 0, SEEK_SET);
+	rewind(clients_file);
 	
 	while (fgets(temp_buffer, sizeof(temp_buffer), clients_file)) {
 		
@@ -549,130 +549,193 @@ bool username_exists(char* username_input, FILE* log_file, FILE* clients_file, A
 	return false;
 }
 
-// to be doc'd
-//void mainbank(Account* account) {
-//	while (true) {
-//		printf("\n\nMain Menu\n\n1. Transfer Money\n2. Deposit Money\n3. Check Balance\n4. Logout\n\nSelect option: ");
-//		scanf(" %c", &option);
-//		clear_stream();
-//		
-//		if (!isdigit(option)) {
-//			printf("Invalid input. Option should be an integer 1 - 4\n\n");
-//			sleep(1);
-//			continue;
-//		}
-//		
-//		switch (option) {
-//			case '4':
-//				printf("Thank you for using Madiland Banking.\nLogging out...\n\n");
-//				sleep(2);
-//				return;
-//			case '1':
-//				printf("\n\nTransferring money...\n\n");
-//				sleep(1);
-//				break;
-//			case '2':
-//				printf("\n\nDepositing money...\n\n");
-//				sleep(1);
-//				break;
-//			case '3':
-//				printf("\n\nChecking balance...\n\n");
-//				sleep(1);
-//				break;
-//			default:
-//				printf("\n\nInvalid input. Please try again!\n\n");
-//				sleep(1);
-//		}
-//	}
-//	
-//	return;
-//}
+/*
+* Displays the services available to the authenticated user, 
+* prompts for option selection and redirects control to the procedure
+* that handles the selected option if valid
+*/
+void dashboard(FILE* log_file, FILE* clients_file, Account* account) {
+	while (true) {
+		printf("\n\nMain Menu\n\n1. Transfer Money\n2. Deposit Money\n3. Check Balance\n4. Logout\n\nSelect option: ");
+		get_menu_option();
+		
+		// validate option
+		if (!isdigit(option)) {
+			log_usage("Non-digit entry in welcome section.", log_file);
+			printf("Invalid input! Option must be a number 1 - 3!\n\n");
+			continue;
+		}
+		
+		switch (option) {
+			case '4':
+				printf("Thank you for using Madiland Banking.\nLogging out...\n\n");
+				return;
+			case '1':
+				transfer_money(log_file, clients_file, account);
+				break;
+			case '2':
+				printf("\n\nDepositing money...\n\n");
+				break;
+			case '3':
+				printf("\n\nChecking balance...\n\n");
+				break;
+			default:
+				printf("\n\nInvalid input. Please try again!\n\n");
+		}
+	}
+	
+	return;
+}
 
-//void transfer_money() {
-//	while (true) {
-//	    while (true) {
-//	    	menu_2:
-//	        printf("Select payment channel: ");
-//	    
-//	        printf("1. Bank\n2. Mobile Money (in development)\n3. PayPal (in development)\n4. Back");
-//	        
-//	        scanf(" %c", &option);
-//	        clear_stream();
-//	        
-//	        if (option != '1') {
-//	        	printf("Feature %d is in development.\n\n", option);
-//	        	continue;
-//			}
-//			
-//			while (true) {
-//		        printf("Select recipient's bank: ");
-//		    
-//		        printf("1. Stanbic\n2. Centenary\n3. DFCU\n4. Post\n5. Equity\n6. Back\n\nEnter option: ");
-//		        
-//		        scanf(" %c", &option);
-//	        	clear_stream();
-//	        	
-//	        	switch (option) {
-//	        		case '6':
-//	        			goto menu_2;
-//	        		case '1':
-//	        		case '2':
-//	        		case '3':
-//	        		case '4':
-//	        		case '5':
-//	        			while (true) {
-//					        printf("Enter recipient's account number: ");
-//					    
-//					        fgets(temp_buffer, sizeof(temp_buffer), stdin);
-//					        temp_buffer[strcspn(temp_buffer, "\n")] = 0;
-//					        
-////					        int validation_result = validate_input(buffer, MONEY);
-//							
-//							
-//					        
-//					        break;
-//					    }
-//	        			break;
-//	        		default:
-//	        			printf("Invalid input\n\n");
-//				}
-//		    }
-//	        
-//	        break;
-//	    }
-//	    
-//	    
-//	    
-//	    while (true) {
-//	        printf("Balance: UGX %.2lf:\nEnter amount: ", balance);
-//	    
-//	        scanf("%lf", &transfer_amount);
-//	    
-//	        if (transfer_amount <= (balance - 5000.0)) {
-//	            balance -= transfer_amount;
-//	            
-//	            FILE* clients = fopen("clients.txt", "r+");
-//	            while (fgets(buffer, sizeof(buffer), clients)) {
-//	                char* token = strtok(buffer, " ");
-//	                if (!strcmp(token, "iraqooh")) {
-//	                	printf("Match at %d\n\n", ftell(clients));
-//	                	
-//	                    break;
-//	                }
-//	            }
-//	            
-//	            
-//	            
-//	            printf("Transfer of UGX %.2lf to %s complete.", transfer_amount, rec_account);
-//	            
-//	        } else {
-//	            printf("Insufficient balance!\n\n");
-//	            continue;
-//	        }
-//	        
-//	        break;
-//	    }
-//	    
-//	    break;
-//	}
-//}
+
+/* Processes the user's transfer request and updates the account information on file
+*/
+void transfer_money(FILE* log_file, FILE* clients_file, Account* account) {
+	log_usage("Attempting money transfer.", log_file);
+	while (true) {
+		printf("\nSelect method\n\n1. Bank Transfer (in development)\n2. Mobile Money (in development)\n3. Online Payment (in development)\n4. Withdraw Cash\n5. Back\n\nSelect option: ");
+		get_menu_option();
+		
+		if (!isdigit(option)) {
+			log_usage("Non-digit input when selecting method of money transfer.", log_file);
+			printf("Option must be a number.\n\n");
+			continue;
+		}
+		
+		switch (option) {
+			case '4':
+				withdraw_cash(log_file, clients_file, account);
+				break;
+			case '5':
+				return;
+			case '1':
+			case '2':
+			case '3':
+				printf("This feature is unavailable.\n\n");
+				break;
+			default:
+				printf("Invalid option. Try again.\n\n");
+		}
+	}
+}
+
+/* 
+* Performs cash withdrawal procedure and updates the account
+*/
+void withdraw_cash(FILE* log_file, FILE* clients_file, Account* account) {
+	while (true) {
+		printf("\nSpecify amount: ");
+		fgets(temp_buffer, sizeof(temp_buffer), stdin);
+		temp_buffer[strcspn(temp_buffer, "\n")] = 0;
+		
+		if (isdigit(temp_buffer[0])) {
+			sscanf(temp_buffer, "%lf", &balance);
+			if (balance > (account->balance - 15000.00)) {
+				log_usage("Insufficient balance for withdrawal.", log_file);
+				printf("Insufficient balance for withdrawal.\n\n");
+				return;
+			} else {
+				account->balance -= balance;
+				update_account(log_file, clients_file, account);
+				return;
+			}
+		} else {
+			log_usage("Non-digit entry when specifying amount for withdrawal.", log_file);
+			printf("Invalid amount. Try again.\n\n");
+			continue;
+		}
+	}
+	
+	return;
+}
+
+/*
+* Reads the clients file and updates the information corresponding
+* to the current user
+*/
+void update_account(FILE* log_file, FILE* clients_file, Account* account) {
+	FILE* temp_file = fopen("temp.txt", "w");
+	
+	if (temp_file == NULL) {
+		
+		log_usage("Temporary file creation failed.", log_file);
+		perror("System error. Contact your system admin.\n\n");
+		fclose(temp_file);
+		return;
+	}
+	
+	bool proceed = false;
+	
+	mem_clear(temp_buffer);
+	
+	while (fgets(temp_buffer, sizeof(temp_buffer), clients_file)) {
+		
+		strcpy(account_info, temp_buffer);
+		char* token = strtok(temp_buffer, " ");
+		if (token != NULL) {
+			
+			if (strcmp(token, account->username) == 0) {
+				
+				int saved = fprintf(temp_file, "%s %s %s %s %s %s %s %s %.2lf\n", 
+					account->username, account->firstname, 
+					account->lastname, account->password, 
+					account->email, account->telephone, 
+					account->account_number, account->pin, 
+					account->balance);
+				
+				if (saved < 0) {
+					
+					log_usage("Failed to copy updated account information to temporary file.", log_file);
+					printf("System error. Contact your system admin.\n\n");
+					fclose(temp_file);
+					return;
+				}
+				
+				proceed = true;
+				
+			} else {
+				
+				int saved = fputs(account_info, temp_file);
+				
+				if (saved == EOF) {
+					
+					log_usage("Failed to copy account information to temporary file.", log_file);
+					printf("System error. Contact your system admin.\n\n");
+					fclose(temp_file);
+					return;
+				}
+				
+				proceed = true;
+				
+			}
+		} else {
+			
+			log_usage("Empty token when reading clients file to update user account information.", log_file);
+			printf("System error. Contact your system admin/\n\n");
+			fclose(temp_file);
+			return;
+		}
+	}
+	
+	fclose(temp_file);
+	
+	if (proceed) {
+        if (remove("clients.txt") != 0) {
+            log_usage("Failed to remove original clients file.", log_file);
+            perror("System error. Contact your system admin.\n\n");
+            return;
+        }
+        if (rename("temp.txt", "clients.txt") != 0) {
+            log_usage("Failed to rename temporary file to clients.txt.", log_file);
+            perror("System error. Contact your system admin.\n\n");
+            return;
+        }
+        log_usage("Successfully updated the account information.", log_file);
+    } else {
+        remove("temp.txt");
+        log_usage("No updates made as the user was not found.", log_file);
+    }
+	
+	return;
+}
+

@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <windows.h>
+#include <math.h>
 
 // global variables
 char option;
@@ -53,7 +54,8 @@ char banks[][128] = {
 };
 
 enum InputType {
-	NAME,
+	FIRSTNAME,
+	LASTNAME,
 	USERNAME,
 	PASSWORD,
 	EMAIL,
@@ -75,7 +77,7 @@ void login_user(FILE* log_file, FILE* clients_file, Account* account);
 void dashboard(FILE* log_file, FILE* clients_file, Account* account);
 void transfer_money(FILE* log_file, FILE* clients_file, Account* account);
 void withdraw_cash(FILE* log_file, FILE* clients_file, Account* account);
-void update_account(FILE* log_file, FILE* clients_file, Account* account);
+void update_account(const enum InputType field, FILE* log_file, FILE* clients_file, long ptr_moves, Account* account);
 
 // main application
 int main() {
@@ -86,13 +88,7 @@ int main() {
 	
 	// main application loop
 	while (true) {
-		// load the user accounts data
-		clients = fopen("clients.txt", "a+");
-		if (clients == NULL) {
-			log_usage("Failed to open \"clients.txt\".", logs);
-			printf("FOE Error: Contact your system admin or try again later!\n\n");
-			break;
-		}
+		
 		
 		// landing section menu
 		printf("Welcome\n\n1. Login\n2. Register\n3. Exit\n\nSelect option: ");
@@ -117,10 +113,24 @@ int main() {
 				printf("Thank you for using Madiland Banking...\nExiting...\n");
 				exit(0);
 			case '2':
+				// load the user accounts data
+				clients = fopen("clients.txt", "a+");
+				if (clients == NULL) {
+					log_usage("Failed to open \"clients.txt\".", logs);
+					printf("FOE Error: Contact your system admin or try again later!\n\n");
+					break;
+				}
 				// register new user
 				register_user(logs, clients, &current_account);
 				break;
 			case '1':
+				// load the user accounts data
+				clients = fopen("clients.txt", "r");
+				if (clients == NULL) {
+					log_usage("Failed to open \"clients.txt\".", logs);
+					printf("FOE Error: Contact your system admin or try again later!\n\n");
+					break;
+				}
 				// login user
 				login_user(logs, clients, &current_account);
 				break;
@@ -129,7 +139,15 @@ int main() {
 				printf("Invalid input. Try again!\n\n");
 		}
 		
+		// load the user accounts data
+		clients = fopen("clients.txt", "r+");
+		if (clients == NULL) {
+			log_usage("Failed to open \"clients.txt\".", logs);
+			printf("FOE Error: Contact your system admin or try again later!\n\n");
+			break;
+		}
 		if (authenticated) dashboard(logs, clients, &current_account);
+		fclose(clients);
 	}
 	
 	return 0;
@@ -182,12 +200,13 @@ void get_menu_option() {
 char* validate_input(char* input, const enum InputType input_type) {
 	int length = strlen(input);
 	
-	if ((input_type == NAME || input_type == USERNAME) && (length < 2 || length > 16)) {
+	if ((input_type == FIRSTNAME || input_type == LASTNAME || input_type == USERNAME) && (length < 2 || length > 16)) {
 		return "Input should be at least 2 or at most 16 characters long!\n\n";
 	}
 	
 	switch (input_type) {
-		case NAME:			
+		case FIRSTNAME:
+		case LASTNAME:			
 			for (int index = 0; index < length; index++) {
 				if (!isalpha(input[index])) return "Names must contain only alphabetic characters!\n\n";
 			}
@@ -284,7 +303,7 @@ void register_user(FILE* log_file, FILE* clients_file, Account* account) {
 	while (true) {
 		printf("\nNew User Registration\n\n");
 		
-		int result = get_string_input("Enter first name", firstname, NAME);
+		int result = get_string_input("Enter first name", firstname, FIRSTNAME);
 		
 		if (result == 0) continue;
 		else if (result == -1) {
@@ -298,7 +317,7 @@ void register_user(FILE* log_file, FILE* clients_file, Account* account) {
 	
 	// last name
 	while (true) {
-		int result = get_string_input("Enter last name", lastname, NAME);
+		int result = get_string_input("Enter last name", lastname, LASTNAME);
 		
 		if (result == 0) continue;
 		else if (result == -1) {
@@ -635,8 +654,9 @@ void withdraw_cash(FILE* log_file, FILE* clients_file, Account* account) {
 				printf("Insufficient balance for withdrawal.\n\n");
 				return;
 			} else {
+				long moves = -1 * (ceil(log10(account->balance)) + 5);
 				account->balance -= balance;
-				update_account(log_file, clients_file, account);
+				update_account(MONEY, log_file, clients_file, moves, account);
 				return;
 			}
 		} else {
@@ -653,88 +673,24 @@ void withdraw_cash(FILE* log_file, FILE* clients_file, Account* account) {
 * Reads the clients file and updates the information corresponding
 * to the current user
 */
-void update_account(FILE* log_file, FILE* clients_file, Account* account) {
-	FILE* temp_file = fopen("temp.txt", "w");
+void update_account(const enum InputType field, FILE* log_file, FILE* clients_file, long ptr_moves, Account* account) {
 	
-	if (temp_file == NULL) {
-		
-		log_usage("Temporary file creation failed.", log_file);
-		perror("System error. Contact your system admin.\n\n");
-		fclose(temp_file);
-		return;
-	}
-	
-	bool proceed = false;
-	
-	mem_clear(temp_buffer);
-	
-	while (fgets(temp_buffer, sizeof(temp_buffer), clients_file)) {
-		
-		strcpy(account_info, temp_buffer);
-		char* token = strtok(temp_buffer, " ");
-		if (token != NULL) {
-			
-			if (strcmp(token, account->username) == 0) {
-				
-				int saved = fprintf(temp_file, "%s %s %s %s %s %s %s %s %.2lf\n", 
-					account->username, account->firstname, 
-					account->lastname, account->password, 
-					account->email, account->telephone, 
-					account->account_number, account->pin, 
-					account->balance);
-				
-				if (saved < 0) {
-					
-					log_usage("Failed to copy updated account information to temporary file.", log_file);
-					printf("System error. Contact your system admin.\n\n");
-					fclose(temp_file);
+	switch(field) {
+		case MONEY:
+			while(fgets(temp_buffer, 256, clients_file)) {
+				char* token = strtok(temp_buffer, " ");
+				if (token != NULL && strcmp(token, account->username) == 0) {
+					fseek(clients_file, ptr_moves, SEEK_CUR);
+					fprintf(clients_file, "%.2lf\n", account->balance);
+					log_usage("Account information updated.", log_file);
+					printf("Your account information has been updated!\n\n");
 					return;
 				}
-				
-				proceed = true;
-				
-			} else {
-				
-				int saved = fputs(account_info, temp_file);
-				
-				if (saved == EOF) {
-					
-					log_usage("Failed to copy account information to temporary file.", log_file);
-					printf("System error. Contact your system admin.\n\n");
-					fclose(temp_file);
-					return;
-				}
-				
-				proceed = true;
-				
 			}
-		} else {
-			
-			log_usage("Empty token when reading clients file to update user account information.", log_file);
-			printf("System error. Contact your system admin/\n\n");
-			fclose(temp_file);
-			return;
-		}
+			break;
+		default:
+			printf("Invalid field type.\n\n");
 	}
-	
-	fclose(temp_file);
-	
-	if (proceed) {
-        if (remove("clients.txt") != 0) {
-            log_usage("Failed to remove original clients file.", log_file);
-            perror("System error. Contact your system admin.\n\n");
-            return;
-        }
-        if (rename("temp.txt", "clients.txt") != 0) {
-            log_usage("Failed to rename temporary file to clients.txt.", log_file);
-            perror("System error. Contact your system admin.\n\n");
-            return;
-        }
-        log_usage("Successfully updated the account information.", log_file);
-    } else {
-        remove("temp.txt");
-        log_usage("No updates made as the user was not found.", log_file);
-    }
 	
 	return;
 }

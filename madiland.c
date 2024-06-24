@@ -654,10 +654,28 @@ void withdraw_cash(FILE* log_file, FILE* clients_file, Account* account) {
 				printf("Insufficient balance for withdrawal.\n\n");
 				return;
 			} else {
-				long moves = -1 * (ceil(log10(account->balance)) + 5);
-				account->balance -= balance;
-				update_account(MONEY, log_file, clients_file, moves, account);
-				return;
+				while (tries > 0) {
+					int result = get_string_input("Enter PIN", pin, PIN);
+					
+					if (result == -1) return;
+					else if (result == 0) continue;
+					
+					if (strcmp(pin, account->pin) == 0) {
+						long moves = -1 * (ceil(log10(account->balance)) + 5);
+						account->balance -= balance;
+						update_account(MONEY, log_file, clients_file, moves, account);
+						return;
+					} else {
+						tries--;
+						log_usage("Incorrect PIN entered during withdrawal attempt.", log_file);
+						if (tries == 0) {
+							log_usage("User exhausted all 3 tries.", log_file);
+							printf("Incorrect password. You have now exhausted all your attempts. Please try again later.\n\n");
+							return;
+						}
+						printf("Incorrect password. You have %d tries remaining.\n\n", tries);
+					}
+				}
 			}
 		} else {
 			log_usage("Non-digit entry when specifying amount for withdrawal.", log_file);

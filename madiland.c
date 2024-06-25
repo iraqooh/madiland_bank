@@ -139,15 +139,17 @@ int main() {
 				printf("Invalid input. Try again!\n\n");
 		}
 		
-		// load the user accounts data
-		clients = fopen("clients.txt", "r+");
-		if (clients == NULL) {
-			log_usage("Failed to open \"clients.txt\".", logs);
-			printf("FOE Error: Contact your system admin or try again later!\n\n");
-			break;
+		if (authenticated) {
+			// load the user accounts data
+			clients = fopen("clients.txt", "r+");
+			if (clients == NULL) {
+				log_usage("Failed to open \"clients.txt\".", logs);
+				printf("FOE Error: Contact your system admin or try again later!\n\n");
+				break;
+			}
+			dashboard(logs, clients, &current_account);
+			fclose(clients);
 		}
-		if (authenticated) dashboard(logs, clients, &current_account);
-		fclose(clients);
 	}
 	
 	return 0;

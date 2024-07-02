@@ -78,6 +78,8 @@ void dashboard(FILE* log_file, FILE* clients_file, Account* account);
 void transfer_money(FILE* log_file, FILE* clients_file, Account* account);
 void withdraw_cash(FILE* log_file, FILE* clients_file, Account* account);
 void update_account(const enum InputType field, FILE* log_file, FILE* clients_file, long ptr_moves, Account* account);
+void deposit_money(FILE* log_file, FILE* clients_file, Account* account);
+void check_balance(FILE* log_file, Account* account);
 
 // main application
 int main() {
@@ -106,8 +108,6 @@ int main() {
 		// main application control flow decisions
 		switch(option) {
 			case '3':
-				// exit application
-				fclose(clients);
 				log_usage("Ending session.", logs);
 				fclose(logs);
 				printf("Thank you for using Madiland Banking...\nExiting...\n");
@@ -128,7 +128,7 @@ int main() {
 				clients = fopen("clients.txt", "r");
 				if (clients == NULL) {
 					log_usage("Failed to open \"clients.txt\".", logs);
-					printf("FOE Error: Contact your system admin or try again later!\n\n");
+					perror("FOE Error: Contact your system admin or try again later!\n\n");
 					break;
 				}
 				// login user
@@ -595,10 +595,10 @@ void dashboard(FILE* log_file, FILE* clients_file, Account* account) {
 				transfer_money(log_file, clients_file, account);
 				break;
 			case '2':
-				printf("\n\nDepositing money...\n\n");
+				deposit_money(log_file, clients_file, account);
 				break;
 			case '3':
-				printf("\n\nChecking balance...\n\n");
+				check_balance(log_file, account);
 				break;
 			default:
 				printf("\n\nInvalid input. Please try again!\n\n");
@@ -703,7 +703,7 @@ void update_account(const enum InputType field, FILE* log_file, FILE* clients_fi
 					fseek(clients_file, ptr_moves, SEEK_CUR);
 					fprintf(clients_file, "%.2lf\n", account->balance);
 					log_usage("Account information updated.", log_file);
-					printf("Your account information has been updated!\n\n");
+					printf("Your account information has been updated!");
 					return;
 				}
 			}
@@ -715,3 +715,47 @@ void update_account(const enum InputType field, FILE* log_file, FILE* clients_fi
 	return;
 }
 
+/*
+* Prompts user to enter an amount to deposit, performs validation and
+* updates the account
+*/
+void deposit_money(FILE* log_file, FILE* clients_file, Account* account) {
+	log_usage("Attempting deposit.", log_file);
+	while (true) {
+		int result = get_string_input("Enter amount to deposit", transfer_amount,
+			MONEY);
+		
+		if (result == 0) continue;
+		else if (result == -1) return;
+		
+		double balance = atof(transfer_amount);
+		
+		if (balance < 5000) {
+			log_usage("Attempting to deposit less than UGX 5,000.", log_file);
+			printf("Minimum deposit is UGX 5,000.\n\n");
+			continue;
+		} else if ((int)balance % 100 != 0) {
+			log_usage("Invalid monetary value provided.", log_file);
+			printf("Amount should be a multiple of UGX 100.\n\n");
+			continue;
+		}
+		
+		long moves = -1 * (ceil(log10(account->balance)) + 5);
+		account->balance += balance;
+		
+		update_account(MONEY, log_file, clients_file, moves, account);
+		
+		break;
+	}
+	
+	return;
+}
+
+
+/* Returns the current account balance of this user
+*/
+void check_balance(FILE* log_file, Account* account) {
+	log_usage("Attempting to retrieve account balance.", log_file);
+	printf("Current account balance: %.2lf", account->balance);
+	return;
+}

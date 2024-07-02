@@ -48,7 +48,7 @@ Follow these steps to get the code and run it on your system:
     ```
     Or, if you don't have `make`:
     ```sh
-    gcc -o madiland_bank main.c account.c transaction.c -I.
+    gcc -o madiland_bank madiland.c.
     ```
 
 3. **Run the Application**
